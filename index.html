@@ -7,6 +7,23 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚛️</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                enableMenu: false // 메뉴를 꺼서 터치 간섭 방지
+            },
+            chtml: {
+                scale: 0.9, // 전체적인 수식 크기를 살짝 줄임
+                minScale: 0.5 // 화면이 작아지면 최대 50%까지 줄어듦
+            }
+        };
+    </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
     <style>
@@ -19,11 +36,9 @@
             --btn-bg: #ffffff;
             --btn-shadow: #cfd8dc;
             --speaker-btn: #ffcc80;
-            
-            /* 정답/오답 색상 정의 */
-            --color-correct: #43a047; /* 초록 */
-            --color-incorrect: #e53935; /* 빨강 */
-            --color-actual: #1e88e5; /* 파랑 */
+            --color-correct: #43a047;
+            --color-incorrect: #e53935;
+            --color-actual: #1e88e5;
         }
 
         body { 
@@ -37,9 +52,9 @@
 
         #game-container { 
             background: var(--card-bg); 
-            padding: 20px; border-radius: 35px; 
+            padding: 15px; border-radius: 35px; 
             box-shadow: 0 15px 35px rgba(0,0,0,0.1); 
-            width: 90%; max-width: 450px; 
+            width: 95%; max-width: 450px; 
             height: 90vh;
             display: flex; flex-direction: column; 
             border: 6px solid #fff; box-sizing: border-box;
@@ -53,36 +68,44 @@
             color: white; background: var(--primary);
         }
 
+        /* 💡 수식 표시 영역 개선: 넘치면 스크롤 + 폰트 가변 */
         #word-display { 
-            font-size: 2.8vh;
+            font-size: 1.2rem;
             color: #333; flex-grow: 1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #f8f9fa; border-radius: 20px; margin: 10px 0;
-            padding: 10px; position: relative; border: 1px inset #eee;
+            padding: 15px; position: relative; border: 1px inset #eee;
+            overflow-x: auto; /* 좌우 스크롤 허용 */
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #equation-box {
+            width: 100%;
+            max-width: 100%;
         }
 
         .speaker-btn {
-            position: absolute; bottom: 10px; right: 10px;
+            position: absolute; bottom: 8px; right: 8px;
             background: var(--speaker-btn); border: none; border-radius: 50%;
-            width: 48px; height: 48px; cursor: pointer;
+            width: 44px; height: 44px; cursor: pointer;
             box-shadow: 0 4px 0px #ffb74d; display: flex; align-items: center; justify-content: center;
-            font-size: 22px; transition: transform 0.1s;
+            font-size: 20px; z-index: 10;
         }
-        .speaker-btn:active { transform: translateY(2px); box-shadow: none; }
 
         #feedback-area {
-            min-height: 100px; 
+            min-height: 90px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
         #feedback { 
-            font-family: 'Nanum Pen Script', cursive; font-size: 22px;
-            text-align: center; word-break: keep-all; line-height: 1.3;
-            margin-bottom: 8px;
+            font-family: 'Nanum Pen Script', cursive; font-size: 20px;
+            text-align: center; word-break: keep-all; line-height: 1.2;
+            margin-bottom: 5px;
         }
 
         #next-btn {
-            background: #c8e6c9; font-size: 15px; padding: 10px 30px;
+            background: #c8e6c9; font-size: 14px; padding: 8px 25px;
             border-radius: 50px; box-shadow: 0 4px 0px #a5d6a7;
             color: #2e7d32; font-weight: bold; border: none; cursor: pointer;
             visibility: hidden;
@@ -95,27 +118,26 @@
         }
         
         button.option-btn { 
-            padding: 12px 10px; font-size: 15px; cursor: pointer; 
-            border: none; border-radius: 15px; 
+            padding: 12px 8px; font-size: 14px; cursor: pointer; 
+            border: none; border-radius: 12px; 
             background: var(--btn-bg); color: var(--text-color);
             box-shadow: 0 4px 0px var(--btn-shadow);
             transition: all 0.2s; word-break: keep-all;
         }
         
-        /* 결과 색상 클래스 */
         button.btn-correct { background-color: var(--color-correct) !important; color: white !important; box-shadow: 0 4px 0px #2e7d32 !important; }
         button.btn-incorrect { background-color: var(--color-incorrect) !important; color: white !important; box-shadow: 0 4px 0px #b71c1c !important; }
         button.btn-actual { background-color: var(--color-actual) !important; color: white !important; box-shadow: 0 4px 0px #0d47a1 !important; }
 
         #score-display { 
-            font-size: 13px; color: #78909c;
-            background: #fff; padding: 8px; border-radius: 15px;
+            font-size: 12px; color: #78909c;
+            background: #fff; padding: 6px; border-radius: 15px;
             display: flex; justify-content: space-around;
             border: 1px solid #eceff1; flex-shrink: 0;
         }
 
         .result-screen { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
-        .btn-action { color: white; font-weight: bold; margin-top: 10px; width: 100%; padding: 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 17px; }
+        .btn-action { color: white; font-weight: bold; margin-top: 10px; width: 100%; padding: 14px; border-radius: 20px; border: none; cursor: pointer; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -145,9 +167,9 @@
         </div>
 
         <div id="result-screen" class="result-screen">
-            <span style="font-size: 60px;">🎓</span>
+            <span style="font-size: 50px;">🎓</span>
             <h2 id="result-title">학습 완료!</h2>
-            <p id="result-stats" style="font-size: 20px; color: #546e7a;"></p>
+            <p id="result-stats" style="font-size: 18px; color: #546e7a;"></p>
             <button onclick="startGame()" class="btn-action" style="background:var(--primary);">✨ 처음부터 다시하기</button>
             <button id="retry-failed-btn" onclick="startRetryMode()" class="btn-action" style="background:var(--accent);">🔁 틀린 문제 다시풀기</button>
         </div>
@@ -167,30 +189,32 @@
     let currentQuizSet = [], currentIdx = 0, correctCount = 0, failedQuestions = [], isReviewMode = false;
 
     function playSound(isCorrect) {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        const now = audioCtx.currentTime;
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
 
-        if (isCorrect) {
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(523.25, now);
-            oscillator.frequency.setValueAtTime(659.25, now + 0.1);
-            oscillator.frequency.setValueAtTime(783.99, now + 0.2);
-            gainNode.gain.setValueAtTime(0.1, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-            oscillator.start(now);
-            oscillator.stop(now + 0.5);
-        } else {
-            oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(220, now);
-            gainNode.gain.setValueAtTime(0.1, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            oscillator.start(now);
-            oscillator.stop(now + 0.3);
-        }
+            if (isCorrect) {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523.25, now);
+                oscillator.frequency.setValueAtTime(659.25, now + 0.1);
+                oscillator.frequency.setValueAtTime(783.99, now + 0.2);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                oscillator.start(now);
+                oscillator.stop(now + 0.5);
+            } else {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(220, now);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                oscillator.start(now);
+                oscillator.stop(now + 0.3);
+            }
+        } catch(e) { console.log("Audio not supported"); }
     }
 
     function readEquation() {
@@ -198,10 +222,12 @@
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(q.read);
         utterance.lang = 'en-US';
-        utterance.rate = 0.75; 
+        utterance.rate = 0.7; // 조금 더 천천히
+        
         const voices = window.speechSynthesis.getVoices();
-        const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google US English'));
+        const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google US English') || v.name.includes('Zira'));
         if (femaleVoice) utterance.voice = femaleVoice;
+        
         window.speechSynthesis.speak(utterance);
     }
 
@@ -235,8 +261,15 @@
     function renderQuestion() {
         if (currentIdx >= currentQuizSet.length) { showResult(); return; }
         const q = currentQuizSet[currentIdx];
-        document.getElementById('equation-box').innerHTML = q.eq;
-        MathJax.typeset(); 
+        
+        const eqBox = document.getElementById('equation-box');
+        eqBox.innerHTML = q.eq;
+        
+        // MathJax 렌더링 후 완료 시점 처리
+        MathJax.typesetPromise().then(() => {
+            // 수식 렌더링 완료 후 필요한 처리
+        });
+
         document.getElementById('current-q-num').innerText = currentIdx + 1;
         document.getElementById('correct-q-num').innerText = correctCount;
 
@@ -265,13 +298,12 @@
         
         if (selectedText === correctText) {
             playSound(true);
-            selectedBtn.classList.add('btn-correct'); // 정답 초록색
+            selectedBtn.classList.add('btn-correct');
             feedback.innerHTML = `<span style="color:var(--color-correct)">✨ 정답! ✨<br><strong>${qObj.year}년</strong>: ${qObj.desc}</span>`;
             correctCount++;
         } else {
             playSound(false);
-            selectedBtn.classList.add('btn-incorrect'); // 선택 오답 빨간색
-            // 진짜 정답 찾아서 파란색 표시
+            selectedBtn.classList.add('btn-incorrect');
             allBtns.forEach(b => {
                 if (b.innerText === correctText) b.classList.add('btn-actual');
             });
