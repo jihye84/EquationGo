@@ -19,6 +19,11 @@
             --btn-bg: #ffffff;
             --btn-shadow: #cfd8dc;
             --speaker-btn: #ffcc80;
+            
+            /* 정답/오답 색상 정의 */
+            --color-correct: #43a047; /* 초록 */
+            --color-incorrect: #e53935; /* 빨강 */
+            --color-actual: #1e88e5; /* 파랑 */
         }
 
         body { 
@@ -49,7 +54,7 @@
         }
 
         #word-display { 
-            font-size: 3vh;
+            font-size: 2.8vh;
             color: #333; flex-grow: 1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #f8f9fa; border-radius: 20px; margin: 10px 0;
@@ -59,14 +64,14 @@
         .speaker-btn {
             position: absolute; bottom: 10px; right: 10px;
             background: var(--speaker-btn); border: none; border-radius: 50%;
-            width: 50px; height: 50px; cursor: pointer;
+            width: 48px; height: 48px; cursor: pointer;
             box-shadow: 0 4px 0px #ffb74d; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; transition: transform 0.1s;
+            font-size: 22px; transition: transform 0.1s;
         }
         .speaker-btn:active { transform: translateY(2px); box-shadow: none; }
 
         #feedback-area {
-            min-height: 110px; 
+            min-height: 100px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
@@ -75,8 +80,6 @@
             text-align: center; word-break: keep-all; line-height: 1.3;
             margin-bottom: 8px;
         }
-        .correct-text { color: #43a047; }
-        .incorrect-text { color: #e53935; }
 
         #next-btn {
             background: #c8e6c9; font-size: 15px; padding: 10px 30px;
@@ -96,9 +99,13 @@
             border: none; border-radius: 15px; 
             background: var(--btn-bg); color: var(--text-color);
             box-shadow: 0 4px 0px var(--btn-shadow);
-            transition: all 0.1s; word-break: keep-all;
+            transition: all 0.2s; word-break: keep-all;
         }
-        button.option-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+        
+        /* 결과 색상 클래스 */
+        button.btn-correct { background-color: var(--color-correct) !important; color: white !important; box-shadow: 0 4px 0px #2e7d32 !important; }
+        button.btn-incorrect { background-color: var(--color-incorrect) !important; color: white !important; box-shadow: 0 4px 0px #b71c1c !important; }
+        button.btn-actual { background-color: var(--color-actual) !important; color: white !important; box-shadow: 0 4px 0px #0d47a1 !important; }
 
         #score-display { 
             font-size: 13px; color: #78909c;
@@ -159,34 +166,30 @@
 
     let currentQuizSet = [], currentIdx = 0, correctCount = 0, failedQuestions = [], isReviewMode = false;
 
-    // 딩동댕 소리 재생 (Web Audio API)
     function playSound(isCorrect) {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
-
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
 
         if (isCorrect) {
-            // 경쾌한 딩동댕 (도-미-솔)
-            const now = audioCtx.currentTime;
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(523.25, now); // 도
-            oscillator.frequency.setValueAtTime(659.25, now + 0.1); // 미
-            oscillator.frequency.setValueAtTime(783.99, now + 0.2); // 솔
+            oscillator.frequency.setValueAtTime(523.25, now);
+            oscillator.frequency.setValueAtTime(659.25, now + 0.1);
+            oscillator.frequency.setValueAtTime(783.99, now + 0.2);
             gainNode.gain.setValueAtTime(0.1, now);
             gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
             oscillator.start(now);
             oscillator.stop(now + 0.5);
         } else {
-            // 아쉬운 소리
             oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.3);
+            oscillator.frequency.setValueAtTime(220, now);
+            gainNode.gain.setValueAtTime(0.1, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            oscillator.start(now);
+            oscillator.stop(now + 0.3);
         }
     }
 
@@ -195,13 +198,10 @@
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(q.read);
         utterance.lang = 'en-US';
-        utterance.rate = 0.8; // 천천히
-
-        // 여자 목소리 찾기 시도
+        utterance.rate = 0.75; 
         const voices = window.speechSynthesis.getVoices();
         const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google US English'));
         if (femaleVoice) utterance.voice = femaleVoice;
-
         window.speechSynthesis.speak(utterance);
     }
 
@@ -235,15 +235,13 @@
     function renderQuestion() {
         if (currentIdx >= currentQuizSet.length) { showResult(); return; }
         const q = currentQuizSet[currentIdx];
-        
         document.getElementById('equation-box').innerHTML = q.eq;
         MathJax.typeset(); 
-
         document.getElementById('current-q-num').innerText = currentIdx + 1;
         document.getElementById('correct-q-num').innerText = correctCount;
 
-        // 보기 형식: "저자이름의 공식이름"
-        let options = [`${q.author}의 ${q.name}`];
+        const correctAnswer = `${q.author}의 ${q.name}`;
+        let options = [correctAnswer];
         let others = physicsData.filter(item => item.name !== q.name).sort(() => Math.random() - 0.5);
         for(let i=0; i < 3; i++) { if(others[i]) options.push(`${others[i].author}의 ${others[i].name}`); }
         options.sort(() => Math.random() - 0.5);
@@ -254,23 +252,30 @@
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             btn.innerText = opt;
-            btn.onclick = () => checkAnswer(opt, q);
+            btn.onclick = () => checkAnswer(btn, opt, correctAnswer, q);
             optionsDiv.appendChild(btn);
         });
     }
 
-    function checkAnswer(selected, qObj) {
+    function checkAnswer(selectedBtn, selectedText, correctText, qObj) {
         const allBtns = document.querySelectorAll('#options button');
         allBtns.forEach(b => b.disabled = true);
 
         const feedback = document.getElementById('feedback');
-        if (selected === `${qObj.author}의 ${qObj.name}`) {
+        
+        if (selectedText === correctText) {
             playSound(true);
-            feedback.innerHTML = `<span class="correct-text">✨ 정답입니다! ✨<br><strong>${qObj.year}년</strong> 발표: ${qObj.desc}</span>`;
+            selectedBtn.classList.add('btn-correct'); // 정답 초록색
+            feedback.innerHTML = `<span style="color:var(--color-correct)">✨ 정답! ✨<br><strong>${qObj.year}년</strong>: ${qObj.desc}</span>`;
             correctCount++;
         } else {
             playSound(false);
-            feedback.innerHTML = `<span class="incorrect-text">아쉬워요! 정답은 <strong>${qObj.author}의 ${qObj.name}</strong>입니다.</span>`;
+            selectedBtn.classList.add('btn-incorrect'); // 선택 오답 빨간색
+            // 진짜 정답 찾아서 파란색 표시
+            allBtns.forEach(b => {
+                if (b.innerText === correctText) b.classList.add('btn-actual');
+            });
+            feedback.innerHTML = `<span style="color:var(--color-incorrect)">아쉬워요! 파란색이 정답입니다.</span>`;
             if (!failedQuestions.some(item => item.name === qObj.name)) failedQuestions.push(qObj);
         }
         document.getElementById('next-btn').style.visibility = 'visible';
@@ -290,7 +295,6 @@
     }
 
     window.onload = startGame;
-    // 목소리 목록 로드 대기
     window.speechSynthesis.onvoiceschanged = () => {};
 </script>
 </body>
